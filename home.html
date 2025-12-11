@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>YouTube Video with Timed Surveys</title>
+  <style>
+    body {
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      max-width: 900px;
+      margin: 2rem auto;
+      padding: 0 1rem;
+    }
+
+    #player {
+      max-width: 100%;
+      margin-bottom: 1.5rem;
+    }
+
+    #survey-overlay {
+      position: fixed;
+      inset: 0;
+      display: none; /* shown via JS */
+      align-items: center;
+      justify-content: center;
+      background: rgba(0, 0, 0, 0.6);
+      z-index: 9999;
+    }
+
+    #survey-box {
+      background: #fff;
+      padding: 1.5rem;
+      border-radius: 10px;
+      max-width: 600px;
+      width: 95%;
+      box-sizing: border-box;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+    }
+
+    #survey-box h2 {
+      margin-top: 0;
+    }
+
+    #survey-question {
+      margin-bottom: 0.75rem;
+      font-weight: 500;
+    }
+
+    #survey-answer {
+      width: 100%;
+      min-height: 100px;
+      padding: 0.5rem;
+      box-sizing: border-box;
+      margin-bottom: 0.75rem;
+      font-family: inherit;
+      font-size: 0.95rem;
+    }
+
+    #survey-footer {
+      display: flex;
+      justify-content: flex-end;
+      gap: 0.5rem;
+    }
+
+    button {
+      padding: 0.5rem 1rem;
+      border-radius: 6px;
+      border: none;
+      cursor: pointer;
+      font-size: 0.95rem;
+    }
+
+    #survey-submit {
+      background: #2563eb;
+      color: white;
+    }
+
+    #survey-submit:disabled {
+      opacity: 0.7;
+      cursor: wait;
+    }
+
+    #survey-cancel {
+      background: #e5e7eb;
+    }
+
+    small#survey-hint {
+      display: block;
+      margin-top: 0.25rem;
+      color: #6b7280;
+      font-size: 0.8rem;
+    }
+  </style>
+</head>
+<body>
+
+  <h1>YouTube Video with Timed Surveys</h1>
+  <p>
+    The video will pause at <strong>10</strong>, <strong>20</strong>, and <strong>30</strong> minutes
+    to ask a quick question. After you answer, it will continue.
+  </p>
+
+  <!-- YouTube player container -->
+  <div id="player"></div>
+
+  <!-- Survey overlay -->
+  <div id="survey-overlay">
+    <div id="survey-box">
+      <h2>Quick Check-In</h2>
+      <p id="survey-question"></p>
+      <textarea id="survey-answer" placeholder="Type your response here..." required></textarea>
+      <small id="survey-hint">Your response will be logged to a Google Sheet.</small>
+
+      <div id="survey-footer">
+        <button type="button" id="survey-cancel">Skip</button>
+        <button type="button" id="survey-submit">Submit &amp; Continue</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Load YouTube IFrame API -->
+  <script src="https://www.youtube.com/iframe_api"></script>
+
+  <script>
+    // ===== CONFIG =====
+    const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbw3WywI7KR_BeJTSqbJfgH83RCYTVnXPjb4hJQFHZSdOgATsh7mfWqCbpgc8Zz7mbOg/exec';
+    const VIDEO_ID = 'qnM6S5Eqt8k';
+
+    const checkpoints = [
+      {
+        time: 600, // 10 minutes
+        id: '10-min',
+        question: 'At the 10-minute mark: what’s one idea or phrase that stands out to you so far?'
+      },
+      {
+        time: 1200, // 20 minutes
+        id: '20-min',
+        question: 'At the 20-minute mark: how might you apply what you’ve heard so far in your own context?'
+      },
+      {
+        time: 1800, // 30 minutes
+        id: '30-min',
+        question: 'At the 30-minute mark: what’s one question or tension you’re still holding?'
+      }
+    ];
+
+    // ===== STATE =====
+    let player;
+    let surveyOverlay, surveyQuestionEl, surveyAnswerEl, surveySubmitBtn, surveyCancelBtn;
+    let timeChecker = null;
+    let isSurveyOpen = false;
+    let activeCheckpoint = null;
+
+    // ===== YOUTUBE PLAYER SETUP =====
+    function onYouTubeIframeAPIReady() {
+      player = new YT.Player('player', {
+        height: '390',
+        width: '640',
+        videoId: VIDEO_ID,
+        playerVars: {
+          rel: 0,
+          modestbranding: 1
+        },
+        events: {
+          'onStateChange': onPlayerStateChange
+        }
+      });
+    }
+
+    function onPlayerStateChange(event) {
+      if (!player) return;
+
+      if (event.data === YT.PlayerState.PLAYING && !isSurveyOpen) {
+        startTimeChecker();
+      } else if (
+        event.data === YT.PlayerState.PAUSED ||
+        event.data === YT.PlayerState.ENDED ||
+        event.data === YT.PlayerState.BUFFERING
+      ) {
+        stopTimeChecker();
+      }
+    }
+
+    function startTimeChecker() {
+      if (timeChecker) return;
+      timeChecker = setInterval(checkForCheckpoint, 500);
+    }
+
+    function stopTimeChecker() {
+      if (timeChecker) {
+        clearInterval(timeChecker);
+        timeChecker = null;
+      }
+    }
+
+    function checkForCheckpoint() {
+      if (!player || isSurveyOpen) return;
+
+      const currentTime = player.getCurrentTime();
+
+      // Find first checkpoint that hasn't been shown and is reached
+      const cp = checkpoints.find(c => !c.shown && currentTime >= c.time);
+
+      if (cp) {
+        cp.shown = true;
+        activeCheckpoint = cp;
+        openSurvey(cp);
+      }
+    }
+
+    // ===== SURVEY UI & SUBMIT =====
+    function openSurvey(checkpoint) {
+      isSurveyOpen = true;
+      stopTimeChecker();
+
+      player.pauseVideo();
+
+      surveyQuestionEl.textContent = checkpoint.question;
+      surveyAnswerEl.value = '';
+      surveySubmitBtn.disabled = false;
+
+      surveyOverlay.style.display = 'flex';
+      surveyAnswerEl.focus();
+    }
+
+    async function submitSurvey(skip = false) {
+      if (!activeCheckpoint) return;
+
+      const answerText = skip ? '' : surveyAnswerEl.value.trim();
+
+      // Basic guard: if not skipping and empty, do nothing
+      if (!skip && !answerText) {
+        alert('Please enter a response or click Skip.');
+        return;
+      }
+
+      surveySubmitBtn.disabled = true;
+
+      const payload = {
+        videoId: VIDEO_ID,
+        checkpointId: activeCheckpoint.id,
+        checkpointSeconds: activeCheckpoint.time,
+        answeredAtIso: new Date().toISOString(),
+        answer: answerText,
+        userAgent: navigator.userAgent
+      };
+
+      try {
+        // no-cors = easiest way to send to Apps Script without CORS headaches
+        await fetch(WEB_APP_URL, {
+          method: 'POST',
+          mode: 'no-cors',
+          body: JSON.stringify(payload)
+        });
+        // We won't see a real response in JS with no-cors, but Apps Script will receive it.
+      } catch (err) {
+        console.error('Error sending survey response:', err);
+      }
+
+      // Close overlay & resume video
+      surveyOverlay.style.display = 'none';
+      isSurveyOpen = false;
+      activeCheckpoint = null;
+
+      // Optional: rewind 1 second for context
+      const t = player.getCurrentTime();
+      player.seekTo(Math.max(0, t - 1), true);
+      player.playVideo();
+      startTimeChecker();
+    }
+
+    // ===== INIT DOM REFERENCES & EVENTS =====
+    window.addEventListener('DOMContentLoaded', () => {
+      surveyOverlay = document.getElementById('survey-overlay');
+      surveyQuestionEl = document.getElementById('survey-question');
+      surveyAnswerEl = document.getElementById('survey-answer');
+      surveySubmitBtn = document.getElementById('survey-submit');
+      surveyCancelBtn = document.getElementById('survey-cancel');
+
+      surveySubmitBtn.addEventListener('click', () => submitSurvey(false));
+      surveyCancelBtn.addEventListener('click', () => submitSurvey(true));
+
+      // Allow Enter+Cmd/Ctrl to submit from textarea
+      surveyAnswerEl.addEventListener('keydown', (e) => {
+        if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
+          submitSurvey(false);
+        }
+      });
+    });
+  </script>
+</body>
+</html>
