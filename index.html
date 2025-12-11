@@ -2,76 +2,269 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>YouTube Video with Timed Surveys</title>
+  <title>BetterUp Video + Reflection Moments</title>
   <style>
+    :root {
+      --bu-cream: #f5f0e8;
+      --bu-deep: #1b0b2a;
+      --bu-pink: #ff6fae;
+      --bu-orange: #ff9a5a;
+      --bu-blue: #4f46e5;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
     body {
+      margin: 0;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
       font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-      max-width: 900px;
-      margin: 2rem auto;
-      padding: 0 1rem;
+      color: #111827;
+      background:
+        radial-gradient(circle at 0% 0%, rgba(255, 111, 174, 0.3), transparent 55%),
+        radial-gradient(circle at 100% 0%, rgba(79, 70, 229, 0.35), transparent 55%),
+        radial-gradient(circle at 50% 100%, rgba(255, 154, 90, 0.35), transparent 55%),
+        var(--bu-deep);
+      padding: 2rem 1rem;
+    }
+
+    .shell {
+      width: 100%;
+      max-width: 960px;
+    }
+
+    .card {
+      background: rgba(245, 240, 232, 0.96);
+      border-radius: 24px;
+      padding: 2.5rem 2rem 2rem;
+      box-shadow:
+        0 18px 45px rgba(15, 23, 42, 0.45),
+        0 0 0 1px rgba(148, 163, 184, 0.25);
+      position: relative;
+      overflow: hidden;
+    }
+
+    /* Accent gradient strip */
+    .card::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      background:
+        linear-gradient(120deg, rgba(255, 111, 174, 0.3), rgba(79, 70, 229, 0.35), rgba(16, 185, 129, 0.25));
+      opacity: 0.55;
+      mix-blend-mode: multiply;
+      z-index: 0;
+    }
+
+    .card-inner {
+      position: relative;
+      z-index: 1;
+    }
+
+    header {
+      text-align: center;
+      margin-bottom: 2rem;
+    }
+
+    .eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      padding: 0.25rem 0.75rem;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.8);
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      color: #4b5563;
+      margin-bottom: 0.9rem;
+    }
+
+    .eyebrow-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 999px;
+      background: linear-gradient(135deg, var(--bu-pink), var(--bu-orange));
+    }
+
+    h1 {
+      font-size: clamp(1.8rem, 2.4vw + 1.4rem, 2.5rem);
+      line-height: 1.1;
+      margin: 0 0 0.75rem;
+      color: #111827;
+    }
+
+    .subheading {
+      margin: 0 auto;
+      max-width: 540px;
+      font-size: 0.98rem;
+      color: #4b5563;
+    }
+
+    .pill-row {
+      margin-top: 1.2rem;
+      display: flex;
+      justify-content: center;
+      gap: 0.6rem;
+      flex-wrap: wrap;
+      font-size: 0.8rem;
+    }
+
+    .pill {
+      padding: 0.3rem 0.9rem;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.85);
+      color: #374151;
+    }
+
+    .pill strong {
+      font-weight: 600;
+    }
+
+    .content {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 1.5rem;
+    }
+
+    .video-shell {
+      width: 100%;
+      max-width: 720px;
+      border-radius: 20px;
+      padding: 0.35rem;
+      background: linear-gradient(135deg, rgba(255, 255, 255, 0.9), rgba(148, 163, 184, 0.8));
+      box-shadow:
+        0 18px 45px rgba(15, 23, 42, 0.55),
+        0 0 0 1px rgba(148, 163, 184, 0.4);
+    }
+
+    .video-inner {
+      position: relative;
+      width: 100%;
+      padding-top: 56.25%; /* 16:9 */
+      border-radius: 16px;
+      overflow: hidden;
+      background: #000;
     }
 
     #player {
-      max-width: 100%;
-      margin-bottom: 1.5rem;
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
     }
 
+    .hint {
+      font-size: 0.8rem;
+      color: #4b5563;
+      text-align: center;
+    }
+
+    /* Survey overlay */
     #survey-overlay {
       position: fixed;
       inset: 0;
-      display: none; /* shown via JS */
+      display: none;
       align-items: center;
       justify-content: center;
-      background: rgba(0, 0, 0, 0.6);
+      background: rgba(15, 23, 42, 0.72);
       z-index: 9999;
     }
 
     #survey-box {
-      background: #fff;
-      padding: 1.5rem;
-      border-radius: 10px;
-      max-width: 600px;
-      width: 95%;
-      box-sizing: border-box;
-      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+      background: var(--bu-cream);
+      border-radius: 20px;
+      max-width: 520px;
+      width: 94%;
+      padding: 1.75rem 1.5rem 1.4rem;
+      box-shadow:
+        0 20px 50px rgba(15, 23, 42, 0.7),
+        0 0 0 1px rgba(148, 163, 184, 0.4);
+      position: relative;
     }
 
-    #survey-box h2 {
-      margin-top: 0;
+    #survey-box::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      background:
+        radial-gradient(circle at 0% 0%, rgba(255, 111, 174, 0.5), transparent 55%),
+        radial-gradient(circle at 100% 100%, rgba(79, 70, 229, 0.45), transparent 55%);
+      mix-blend-mode: multiply;
+      opacity: 0.75;
+      border-radius: inherit;
+      z-index: 0;
+    }
+
+    #survey-box-inner {
+      position: relative;
+      z-index: 1;
+    }
+
+    #survey-title {
+      margin: 0 0 0.4rem;
+      font-size: 1.2rem;
+      color: #111827;
     }
 
     #survey-question {
-      margin-bottom: 0.75rem;
-      font-weight: 500;
+      margin: 0 0 0.75rem;
+      font-size: 0.95rem;
+      color: #111827;
     }
 
     #survey-answer {
       width: 100%;
-      min-height: 100px;
-      padding: 0.5rem;
-      box-sizing: border-box;
-      margin-bottom: 0.75rem;
+      min-height: 110px;
+      padding: 0.6rem 0.7rem;
+      border-radius: 10px;
+      border: 1px solid rgba(148, 163, 184, 0.8);
+      resize: vertical;
       font-family: inherit;
       font-size: 0.95rem;
+      color: #111827;
+      background: rgba(255, 255, 255, 0.9);
+      margin-bottom: 0.6rem;
+    }
+
+    #survey-hint {
+      display: block;
+      font-size: 0.78rem;
+      color: #4b5563;
+      margin-bottom: 0.9rem;
     }
 
     #survey-footer {
       display: flex;
       justify-content: flex-end;
-      gap: 0.5rem;
+      gap: 0.6rem;
     }
 
     button {
-      padding: 0.5rem 1rem;
-      border-radius: 6px;
+      padding: 0.45rem 1rem;
+      border-radius: 999px;
       border: none;
       cursor: pointer;
-      font-size: 0.95rem;
+      font-size: 0.9rem;
+      font-family: inherit;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.3rem;
+      white-space: nowrap;
     }
 
     #survey-submit {
-      background: #2563eb;
-      color: white;
+      background: linear-gradient(135deg, var(--bu-pink), var(--bu-orange));
+      color: #111827;
+      font-weight: 600;
     }
 
     #survey-submit:disabled {
@@ -80,81 +273,113 @@
     }
 
     #survey-cancel {
-      background: #e5e7eb;
+      background: rgba(255, 255, 255, 0.85);
+      color: #374151;
+      border: 1px solid rgba(148, 163, 184, 0.7);
     }
 
-    small#survey-hint {
-      display: block;
-      margin-top: 0.25rem;
-      color: #6b7280;
-      font-size: 0.8rem;
+    @media (max-width: 640px) {
+      .card {
+        padding: 1.9rem 1.3rem 1.4rem;
+        border-radius: 20px;
+      }
+      h1 {
+        font-size: 1.6rem;
+      }
+      .video-shell {
+        border-radius: 18px;
+      }
     }
   </style>
 </head>
 <body>
+  <div class="shell">
+    <main class="card">
+      <div class="card-inner">
+        <header>
+          <div class="eyebrow">
+            <span class="eyebrow-dot"></span>
+            Reflection moments
+          </div>
+          <h1>See the work, then pause to reflect</h1>
+          <p class="subheading">
+            Watch the story unfold, then capture what stands out in the moment.
+            The video will pause briefly so you can jot down what you’re noticing and learning.
+          </p>
+          <div class="pill-row">
+            <div class="pill"><strong>3s</strong> first impression check-in</div>
+            <div class="pill"><strong>20s</strong> early insight reflection</div>
+            <div class="pill"><strong>1:00</strong> integration moment</div>
+          </div>
+        </header>
 
-  <h1>YouTube Video with Timed Surveys</h1>
-  <p>
-    The video will pause at <strong>10</strong>, <strong>20</strong>, and <strong>30</strong> minutes
-    to ask a quick question. After you answer, it will continue.
-  </p>
-
-  <!-- YouTube player container -->
-  <div id="player"></div>
+        <section class="content">
+          <div class="video-shell">
+            <div class="video-inner">
+              <div id="player"></div>
+            </div>
+          </div>
+          <p class="hint">
+            The video will pause at these moments so you can type a quick reflection. Your responses are saved to a private log.
+          </p>
+        </section>
+      </div>
+    </main>
+  </div>
 
   <!-- Survey overlay -->
   <div id="survey-overlay">
     <div id="survey-box">
-      <h2>Quick Check-In</h2>
-      <p id="survey-question"></p>
-      <textarea id="survey-answer" placeholder="Type your response here..." required></textarea>
-      <small id="survey-hint">Your response will be logged to a Google Sheet.</small>
-
-      <div id="survey-footer">
-        <button type="button" id="survey-cancel">Skip</button>
-        <button type="button" id="survey-submit">Submit &amp; Continue</button>
+      <div id="survey-box-inner">
+        <h2 id="survey-title">Quick check-in</h2>
+        <p id="survey-question"></p>
+        <textarea id="survey-answer" placeholder="Type your response here..." required></textarea>
+        <small id="survey-hint">Your response will be logged to a Google Sheet.</small>
+        <div id="survey-footer">
+          <button type="button" id="survey-cancel">Skip for now</button>
+          <button type="button" id="survey-submit">Submit &amp; continue</button>
+        </div>
       </div>
     </div>
   </div>
 
-  <!-- Load YouTube IFrame API -->
+  <!-- YouTube IFrame API -->
   <script src="https://www.youtube.com/iframe_api"></script>
 
   <script>
     // ===== CONFIG =====
     const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbw3WywI7KR_BeJTSqbJfgH83RCYTVnXPjb4hJQFHZSdOgATsh7mfWqCbpgc8Zz7mbOg/exec';
-    const VIDEO_ID = 'qnM6S5Eqt8k';
+    const VIDEO_ID = 'd__a_DYrpbE'; // new BetterUp video
 
     const checkpoints = [
       {
-        time: 600, // 10 minutes
-        id: '10-min',
-        question: 'At the 10-minute mark: what’s one idea or phrase that stands out to you so far?'
+        time: 3,           // 3 seconds
+        id: '3-sec',
+        question: 'In these first few seconds, what’s your very first impression or feeling?'
       },
       {
-        time: 1200, // 20 minutes
-        id: '20-min',
-        question: 'At the 20-minute mark: how might you apply what you’ve heard so far in your own context?'
+        time: 20,          // 20 seconds
+        id: '20-sec',
+        question: 'What’s standing out to you so far, and why do you think it’s landing that way?'
       },
       {
-        time: 1800, // 30 minutes
-        id: '30-min',
-        question: 'At the 30-minute mark: what’s one question or tension you’re still holding?'
+        time: 60,          // 1 minute
+        id: '60-sec',
+        question: 'If you were to apply one idea from this first minute, where would you start?'
       }
     ];
 
     // ===== STATE =====
     let player;
-    let surveyOverlay, surveyQuestionEl, surveyAnswerEl, surveySubmitBtn, surveyCancelBtn;
     let timeChecker = null;
     let isSurveyOpen = false;
     let activeCheckpoint = null;
 
+    let surveyOverlay, surveyQuestionEl, surveyAnswerEl, surveySubmitBtn, surveyCancelBtn;
+
     // ===== YOUTUBE PLAYER SETUP =====
     function onYouTubeIframeAPIReady() {
       player = new YT.Player('player', {
-        height: '390',
-        width: '640',
         videoId: VIDEO_ID,
         playerVars: {
           rel: 0,
@@ -196,8 +421,6 @@
       if (!player || isSurveyOpen) return;
 
       const currentTime = player.getCurrentTime();
-
-      // Find first checkpoint that hasn't been shown and is reached
       const cp = checkpoints.find(c => !c.shown && currentTime >= c.time);
 
       if (cp) {
@@ -227,41 +450,31 @@
 
       const answerText = skip ? '' : surveyAnswerEl.value.trim();
 
-      // Basic guard: if not skipping and empty, do nothing
       if (!skip && !answerText) {
-        alert('Please enter a response or click Skip.');
+        alert('Please enter a reflection or choose “Skip for now”.');
         return;
       }
 
       surveySubmitBtn.disabled = true;
 
       const payload = {
-        videoId: VIDEO_ID,
-        checkpointId: activeCheckpoint.id,
-        checkpointSeconds: activeCheckpoint.time,
-        answeredAtIso: new Date().toISOString(),
-        answer: answerText,
-        userAgent: navigator.userAgent
+        answer: answerText   // your Apps Script only needs this field
       };
 
       try {
-        // no-cors = easiest way to send to Apps Script without CORS headaches
         await fetch(WEB_APP_URL, {
           method: 'POST',
           mode: 'no-cors',
           body: JSON.stringify(payload)
         });
-        // We won't see a real response in JS with no-cors, but Apps Script will receive it.
       } catch (err) {
         console.error('Error sending survey response:', err);
       }
 
-      // Close overlay & resume video
       surveyOverlay.style.display = 'none';
       isSurveyOpen = false;
       activeCheckpoint = null;
 
-      // Optional: rewind 1 second for context
       const t = player.getCurrentTime();
       player.seekTo(Math.max(0, t - 1), true);
       player.playVideo();
@@ -279,7 +492,6 @@
       surveySubmitBtn.addEventListener('click', () => submitSurvey(false));
       surveyCancelBtn.addEventListener('click', () => submitSurvey(true));
 
-      // Allow Enter+Cmd/Ctrl to submit from textarea
       surveyAnswerEl.addEventListener('keydown', (e) => {
         if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
           submitSurvey(false);
